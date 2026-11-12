@@ -38,7 +38,7 @@ async function packagePlugin(
 }
 
 async function harness(
-  enabled?: boolean, packageService = false,
+  enabled: boolean | 'default' = true, packageService = false,
 ): Promise<{ ctx: Context; root: string; disposeInventory: () => Promise<void> }> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-plugin-packages-'))
   roots.push(root)
@@ -52,7 +52,7 @@ async function harness(
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(AgentPresets, { default: 'fixture' })
   await ctx.plugin(DeepSeekLlmApiExtensionRegistry)
-  const inventory = enabled === undefined
+  const inventory = enabled === 'default'
     ? ctx.plugin(PluginInventory)
     : ctx.plugin(PluginInventory, { enabled })
   await inventory
@@ -60,12 +60,18 @@ async function harness(
 }
 
 describe('DeepSeek plugin package inventory', () => {
-  it('contributes by default and can be explicitly disabled', async () => {
-    const defaultHarness = await harness()
+  it('contributes nothing by default and only when explicitly enabled', async () => {
+    const defaultHarness = await harness('default')
     const defaultFields = await defaultHarness.ctx.deepseekLlmApiExtensions.prepare({
       body: { messages: [] }, signal: SIGNAL,
     })
-    expect(defaultFields.fields).toHaveProperty('dsh_plugin_packages')
+    expect(defaultFields.fields).not.toHaveProperty('dsh_plugin_packages')
+
+    const enabledHarness = await harness(true)
+    const enabledFields = await enabledHarness.ctx.deepseekLlmApiExtensions.prepare({
+      body: { messages: [] }, signal: SIGNAL,
+    })
+    expect(enabledFields.fields).toHaveProperty('dsh_plugin_packages')
 
     const disabledHarness = await harness(false)
     const disabledFields = await disabledHarness.ctx.deepseekLlmApiExtensions.prepare({
@@ -146,7 +152,7 @@ describe('DeepSeek plugin package inventory', () => {
   })
 
   it.each(['file', 'bare'])('reports an unversioned private %s package by name alongside versioned packages', async (kind) => {
-    const { ctx, root } = await harness(undefined, true)
+    const { ctx, root } = await harness(true, true)
     const parent = await packagePlugin(root, 'node_modules/inspector', { name: 'inspector', version: '1.0.0' })
     const nested = await packagePlugin(root, kind === 'file' ? 'node_modules/inspector/skill' : 'node_modules/inspector-skill',
       { name: 'inspector-skill', private: true })
@@ -200,7 +206,7 @@ describe('DeepSeek plugin package inventory', () => {
   })
 
   it('resolves scoped and unscoped bare subpaths, absolute/file modules, and skips URL or Cordis modules', async () => {
-    const { ctx, root } = await harness(undefined, true)
+    const { ctx, root } = await harness(true, true)
     await packagePlugin(root, 'node_modules/plain-package', { name: 'plain-package', version: '1.0.0' })
     await packagePlugin(root, 'node_modules/@scope/scoped-package', { name: '@scope/scoped-package', version: '2.0.0' })
     await packagePlugin(root, 'absolute-package', { name: 'absolute-package', version: '3.0.0' })
@@ -245,7 +251,7 @@ describe('DeepSeek plugin package inventory', () => {
   })
 
   it('does not bypass the profile package service for a missing bare package', async () => {
-    const { ctx } = await harness(undefined, true)
+    const { ctx } = await harness(true, true)
     ctx.loader.internal = {
       version: 'v2',
       import: async () => ({ default: () => {} }),
@@ -263,7 +269,7 @@ describe('DeepSeek plugin package inventory', () => {
     await ctx.plugin(SessionProjectionRegistry)
     await ctx.plugin(AgentRegistry)
     await ctx.plugin(DeepSeekLlmApiExtensionRegistry)
-    await ctx.plugin(PluginInventory)
+    await ctx.plugin(PluginInventory, { enabled: true })
     ctx.loader.builtins.noop = () => {}
     await ctx.loader.create({ name: 'cordis:noop' })
     const prepared = await ctx.deepseekLlmApiExtensions.prepare({ body: { messages: [] }, signal: SIGNAL })

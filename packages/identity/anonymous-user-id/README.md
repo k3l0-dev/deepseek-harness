@@ -29,11 +29,10 @@ When you want the records your installation sends out to be recognizable as comi
 
 ### What the id does for you
 
-Three things your installation sends out carry the same id, so records line up across all of them:
+Two consumers read the same id; neither sends it anywhere by default:
 
-- **Session telemetry** — your telemetry exports carry the id as the `user.id` resource attribute, so a collector can group an installation's records.
-- **Feedback** — each feedback acknowledgement names the anonymous installation that recorded it.
-- **DeepSeek requests** — every provider request carries the `x-deepseek-harness-user-id` header, so usage can be attributed per installation.
+- **Session telemetry** — when a deployment enables uploads, exports carry the id as the `user.id` resource attribute, so a collector can group an installation's records.
+- **Feedback** — each local feedback acknowledgement names the anonymous installation that recorded it.
 
 ### Observing and resetting the id
 
@@ -96,7 +95,6 @@ Read these pages when the package-level contract is not enough. They move from t
 - [dsh-home-paths](../../util/home-paths/README.md) — owns `$DSH_HOME` and `~/.dsh` resolution.
 - [dsh-session-telemetry-otel](../../session/session-telemetry-otel/README.md) — reports the id as the OTel Resource `user.id`.
 - [dsh-command-feedback](../../feedback/command-feedback/README.md) — embeds the id in the feedback acknowledgement.
-- [dsh-llm-deepseek](../../llm/llm-deepseek/README.md) — sends `x-deepseek-harness-user-id` on provider requests.
 - [Session telemetry subsystem](../../../docs/subsystems/session-telemetry.md) — the telemetry seam and its backend contract.
 
 -----
@@ -104,11 +102,11 @@ Read these pages when the package-level contract is not enough. They move from t
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as the shared identifier reaches DeepSeek only as model-hidden HTTP metadata and registers nothing model-facing.
+None, as the identifier never enters model requests and registers nothing model-facing.
 
 #### KV Cache effect
 
-None; the transport header changes neither tokens nor the model-visible prefix.
+None; the id changes neither tokens nor the model-visible prefix.
 
 ## Known Limitations and Deferred Work
 
@@ -120,7 +118,6 @@ These limits describe when the id is a poor fit or needs special attention. They
 - **No recovery after deletion** — losing the file mints a new anonymous identity by design; recovery would require stable derivation material that weakens anonymity.
 - **Best-effort concurrency** — a reader landing in the narrow interval between a concurrent process's exclusive create and completed write can use a different in-memory UUID for that run; later launches converge on the persisted value.
 - **No cross-home identity** — different `$DSH_HOME` values cannot be correlated.
-- **Configured DeepSeek gateways receive the id** — `dsh-llm-deepseek` sends the stable header to its resolved `baseURL`, including deployment overrides, independently of telemetry sharing mode.
 - **Deleting the file does not reset the current process** — memoization keeps the run's id until the next launch.
 
 <a id="dev-note"></a>

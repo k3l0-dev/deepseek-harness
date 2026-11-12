@@ -266,6 +266,8 @@ Use `node apps/desktop/scripts/test-windows-installer.mjs --uninstall-only --com
 
 ## Updates
 
+Update checks are opt-in at packaging time. A package built without `DSH_DESKTOP_AUTO_UPDATE=1` carries no update feed (`app-update.yml`) and no mandatory-update policy, so it contacts no update service. The rest of this section applies only to packages built with that opt-in.
+
 On Windows, the downloaded-update confirmation explains that the application closes during installation, reopens automatically, and should not be launched again while updating. An installer restart carrying `--updated` raises and focuses the main window once when startup opens the workspace directly, without enabling always-on-top. Startup into the welcome page discards that request so a later login keeps its normal activation behavior. Ordinary launches and other platforms do not use this foregrounding step.
 
 On macOS, installation preparation waits for the product window to leave fullscreen before displaying the restart confirmation. Cancelling leaves the window in normal mode; destroying it during the native transition cancels installation before task teardown. If macOS does not report completion within five seconds, preparation fails without stopping the Host; the localized error asks the user to exit fullscreen and retry. Installation failure recovery uses the normal window.

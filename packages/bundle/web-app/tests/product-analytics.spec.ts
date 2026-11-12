@@ -12,7 +12,7 @@ import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 
 afterEach(() => { vi.unstubAllEnvs() })
 
-it.each(['desktop', 'web'])('limits collection and its shutdown to the Desktop launch: %s', async (profile) => {
+it.each(['desktop', 'web'])('ships collection disabled and keeps an explicit opt-in bounded: %s', async (profile) => {
   const received = Promise.withResolvers<undefined>()
   const server = createServer((req) => { req.resume(); req.once('end', () => { received.resolve(undefined) }) })
   server.listen(0, '127.0.0.1')
@@ -37,16 +37,22 @@ it.each(['desktop', 'web'])('limits collection and its shutdown to the Desktop l
   ctx.loader.builtins.analytics = Analytics
   const rows = loadOverlayPatches('analytics', fileURLToPath(new URL('../cordis.patch.yml', import.meta.url)))
     .flatMap(patch => patch.insert ?? []).filter(row => row.id === 'desktop-product-telemetry' || row.id === 'product-analytics')
-  const entries = rows.map(row => ({ ...row, name: row.id === 'desktop-product-telemetry' ? 'cordis:telemetry' : 'cordis:analytics' }))
+  const shipped = rows.map(row => ({ ...row, name: row.id === 'desktop-product-telemetry' ? 'cordis:telemetry' : 'cordis:analytics' }))
+  await ctx.loader.root.update(shipped)
+  await ctx.loader.await()
+  expect(ctx.loader.resolve('desktop-product-telemetry').disabled).toBe(true)
+  expect(ctx.loader.resolve('product-analytics').disabled).toBe(true)
+  expect(rows.find(row => row.id === 'product-analytics')?.config).toMatchObject({ enabled: false })
+  expect(ctx.get('productTelemetry')).toBeUndefined()
+  expect(ctx.get('productAnalytics')).toBeUndefined()
+  if (profile !== 'desktop') return
+  // A deployment opting in re-enables both rows in a later layer.
+  const entries = shipped.map(row => row.id === 'product-analytics'
+    ? { ...row, disabled: false, config: { ...row.config as Record<string, unknown>, enabled: true } }
+    : { ...row, disabled: false })
   await ctx.loader.root.update(entries)
   await ctx.loader.await()
   const entry = ctx.loader.resolve('desktop-product-telemetry')
-  expect(entry.disabled).toBe(profile !== 'desktop')
-  if (profile !== 'desktop') {
-    expect(ctx.get('productTelemetry')).toBeUndefined()
-    expect(ctx.get('productAnalytics')).toBeUndefined()
-    return
-  }
   expect(rows[0]!.config).toMatchObject({
     scheduledDelayMillis: 30000, timeoutMillis: 15000, exportTimeoutMillis: 20000, shutdownTimeoutMillis: 2000,
   })

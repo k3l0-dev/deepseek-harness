@@ -31,7 +31,7 @@ kind: "package-reference"
 - name: '@deepseek-ai/dsh-otel'
 - name: '@deepseek-ai/dsh-host-product-telemetry-otel'
   config:
-    endpoint: https://dsh-otel-collector.deepseeksvc.com/v1/logs
+    endpoint: https://collector.example.com/v1/logs
     serviceName: deepseek-harness
     serviceVersion: !!js process.env.DSH_APP_VERSION
     compression: gzip
@@ -40,7 +40,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `endpoint` | `https://dsh-otel-collector.deepseeksvc.com/v1/logs` | 完整 HTTP(S) 日志地址 |
+| `endpoint` | 必填 | 完整 HTTP(S) 日志地址 |
 | `serviceName`, `serviceVersion` | 必填 | OTel resource 中的应用标识 |
 | `channel` | `dsh_otel_report` | 接收服务的 `x-channel` 请求头 |
 | `compression` | SDK 环境变量 | `gzip` 或 `none`；省略时遵循 OTel 压缩环境变量 |
@@ -50,7 +50,7 @@ kind: "package-reference"
 | `exportTimeoutMillis` | `20000` | Processor 批次导出的超时时间 |
 | `shutdownTimeoutMillis` | `21000` | 排空期限；超时取消待完成的导出并提示可能丢失数据 |
 
-默认接收地址将显式提交的事件发送到生产产品 collector，测试和自定义部署必须覆盖该地址。只向 collector 发送 `x-channel` 和 SDK 协议请求头，不继承宿主 OTel 请求头或客户端证书。
+接收地址没有默认值，每个组合都需指定自己的 collector。只向 collector 发送 `x-channel` 和 SDK 协议请求头，不继承宿主 OTel 请求头或客户端证书。
 
 30 秒间隔用于批量发送产品事件；exporter 的 15 秒重试窗口位于 processor 的 20 秒批次期限内。21 秒排空期限覆盖 processor 期限未覆盖的 SDK `forceFlush()`。超时会取消活动 HTTP 请求和重试等待，随后等待传输清理完成才结束卸载。collector 不可达时，卸载可能等待完整的 21 秒。2,048 条满队列需要四个 512 条批次，可能无法在期限前排空。要求更快退出的交互式应用组合应覆盖这些时间配置；两种配置都不保证送达。
 

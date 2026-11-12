@@ -27,6 +27,7 @@ it.each(['arm64', 'x64'] as const)('embeds stable in a prerelease macOS %s packa
   const version = `${desktopBuildVersionPrefix(manifest.version)}20261103.1`
   const config = createElectronBuilderConfig({
     DSH_DESKTOP_APP_ID: 'com.example.channel-test',
+    DSH_DESKTOP_AUTO_UPDATE: '1',
     DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
     DSH_DESKTOP_UPDATE_CHANNEL: 'stable',
     DSH_DESKTOP_BUILD_VERSION: version,
@@ -37,6 +38,20 @@ it.each(['arm64', 'x64'] as const)('embeds stable in a prerelease macOS %s packa
   }, 'darwin', arch)
   expect(config.extraMetadata).toMatchObject({ version, dshDesktopUpdateChannel: 'stable' })
   expect(config.publish).toEqual([{ provider: 'generic', url: `https://download.deepseek.com/dsh-desk/feeds/mac-${arch}/`, channel: 'stable' }])
+})
+
+it.each(['arm64', 'x64'] as const)('omits the update feed and policy from a signed macOS %s package unless opted in', (arch) => {
+  const config = createElectronBuilderConfig({
+    DSH_DESKTOP_APP_ID: 'com.example.channel-test',
+    DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
+    DSH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Example Company (TEAMID1234)',
+    DSH_DESKTOP_MACOS_TEAM_ID: 'TEAMID1234',
+    APPLE_KEYCHAIN_PROFILE: 'channel-test',
+  }, 'darwin', arch)
+  expect(config.publish).toBeNull()
+  expect(config.extraMetadata).not.toHaveProperty('dshMandatoryUpdatePolicy')
+  expect(() => createElectronBuilderConfig({ DSH_DESKTOP_APP_ID: 'com.example.channel-test', DSH_DESKTOP_AUTO_UPDATE: 'yes' }, 'darwin', arch))
+    .toThrow('DSH_DESKTOP_AUTO_UPDATE must be 0 or 1')
 })
 
 it('accepts a stable prerelease in an unsigned Windows x64 configuration', () => {

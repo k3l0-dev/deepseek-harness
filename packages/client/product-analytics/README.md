@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Desktop reports selected interactions through the existing OTel product exporter by default, without a user-facing control. Ordinary Web clients never submit these events, and missing login identity is omitted.
+The shipped compositions keep Desktop analytics disabled; a deployment that re-enables it reports selected interactions through the OTel product exporter, without a user-facing control. Ordinary Web clients never submit these events, and missing login identity is omitted.
 
 ## Table of Contents
 

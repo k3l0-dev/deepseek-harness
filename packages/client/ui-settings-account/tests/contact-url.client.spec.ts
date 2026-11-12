@@ -3,17 +3,17 @@ import type { AccountUserId } from '@deepseek-ai/dsh-deepseek-account/types'
 import { ContactConfig } from '../src/contact-config.ts'
 import { contactUrl } from '../src/client/contact-url.ts'
 
+const FORM = 'https://forms.example.test/share/form?hide_uid=1&hide_device_info=1&hide_harness_version=1'
+
 it('prefills the available support context and hides every context field', () => {
-  const config = ContactConfig({ contactSource: 'app_harness' })
+  const config = ContactConfig({ contactFormUrl: FORM, contactSource: 'app_harness' })
   const url = new URL(contactUrl(config, {
     uid: 'account-user' as AccountUserId, version: '1.2.3',
     deviceInfo: 'Mozilla/5.0 (Macintosh) Harness/1.2.3', width: 1512, height: 982, pixelRatio: 2,
   }))
-  expect(url.origin).toBe('https://trtgsjkv6r.feishu.cn')
-  expect(url.pathname).toBe('/share/base/form/shrcnlCoGElW7MQznGy9r3YYXcg')
-  expect(Object.fromEntries(new URL(ContactConfig({}).contactFormUrl).searchParams)).toEqual({
-    hide_uid: '1', hide_device_info: '1', hide_harness_version: '1',
-  })
+  expect(url.origin).toBe('https://forms.example.test')
+  expect(url.pathname).toBe('/share/form')
+  expect(ContactConfig({}).contactFormUrl).toBe('')
   expect(Object.fromEntries(url.searchParams)).toEqual({
     hide_uid: '1', prefill_uid: 'account-user',
     hide_source: '1', prefill_source: 'app_harness',
@@ -23,7 +23,7 @@ it('prefills the available support context and hides every context field', () =>
 })
 
 it('percent-encodes context values that carry URL delimiters', () => {
-  const url = new URL(contactUrl(ContactConfig({ contactSource: 'a&b=c' }), {
+  const url = new URL(contactUrl(ContactConfig({ contactFormUrl: FORM, contactSource: 'a&b=c' }), {
     uid: 'user&admin=1' as AccountUserId, version: '1.0.0-rc.1+build',
     deviceInfo: 'platform=darwin; os=15.0; app_arch=arm64; cpu=Apple M3; memory_gib=16.0',
     width: 800, height: 600, pixelRatio: 1,
@@ -53,7 +53,7 @@ it('opens a configured form and omits unavailable context', () => {
 })
 
 it.each([NaN, Infinity])('uses CSS pixel dimensions when device pixel ratio is %s', (pixelRatio) => {
-  const url = new URL(contactUrl(ContactConfig({}), {
+  const url = new URL(contactUrl(ContactConfig({ contactFormUrl: FORM }), {
     uid: null, version: undefined, deviceInfo: '', width: 800, height: 600, pixelRatio,
   }))
   expect(url.searchParams.get('prefill_device_info')).toBe('screen_resolution=800x600')
@@ -77,14 +77,14 @@ it('drops unsupported prefill and hide parameters while preserving form options'
 })
 
 it.each([[0, 600], [800, 0], [-1, 600]])('keeps the device description without unavailable screen dimensions (%s, %s)', (width, height) => {
-  const url = new URL(contactUrl(ContactConfig({}), {
+  const url = new URL(contactUrl(ContactConfig({ contactFormUrl: FORM }), {
     uid: null, version: undefined, deviceInfo: 'platform=darwin', width, height, pixelRatio: 1,
   }))
   expect(url.searchParams.get('prefill_device_info')).toBe('platform=darwin')
 })
 
 it('rounds physical screen dimensions in the device description', () => {
-  const url = new URL(contactUrl(ContactConfig({}), {
+  const url = new URL(contactUrl(ContactConfig({ contactFormUrl: FORM }), {
     uid: null, version: undefined, deviceInfo: '', width: 801, height: 601, pixelRatio: 1.25,
   }))
   expect(url.searchParams.get('prefill_device_info')).toBe('screen_resolution=1001x751')
